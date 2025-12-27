@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Área privada | The Sea Connector</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0b0b;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .box {
+      background: #111;
+      padding: 40px;
+      border-radius: 12px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+      color: #f6b93b;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #ccc;
+      margin-bottom: 25px;
+    }
+
+    button {
+      background: #f6b93b;
+      border: none;
+      padding: 12px 20px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 8px;
+    }
+
+    button:hover {
+      background: #f0932b;
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="box">
+    <h1>Área privada 🔐</h1>
+    <p id="userInfo">Cargando usuario...</p>
+
+    <button onclick="logout()">Cerrar sesión</button>
+  </div>
+
+  <!-- SCRIPT DE PROTECCIÓN Y CARGA DE USUARIO -->
+  <script>
+    const token = localStorage.getItem("token");
+
+    // Si no hay token → fuera
+    if (!token) {
+      window.location.href = "login.html";
+    }
+
+    fetch("http://localhost:3000/api/profile", {
+      method: "GET",
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error("Token inválido");
+      }
+      return res.json();
+    })
+    .then(data => {
+      document.getElementById("userInfo").innerText =
+        "Bienvenido, " + data.user.email;
+    })
+    .catch(() => {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    });
+
+    function logout() {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    }
+  </script>
+
+</body>
+</html>
