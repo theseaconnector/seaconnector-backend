@@ -63,16 +63,16 @@
     <button onclick="logout()">Cerrar sesión</button>
   </div>
 
-  <!-- SCRIPT DE PROTECCIÓN Y CARGA DE USUARIO -->
   <script>
     const token = localStorage.getItem("token");
 
-    // Si no hay token → fuera
+    // Si no hay token → redirigir al login
     if (!token) {
       window.location.href = "login.html";
     }
 
-    fetch("http://localhost:3000/api/profile", {
+    // 🔹 Cargar datos del usuario desde el backend en Render
+    fetch("https://seaconnector-backend.onrender.com/api/profile", {
       method: "GET",
       headers: {
         Authorization: "Bearer " + token
@@ -89,6 +89,7 @@
         "Bienvenido, " + data.user.email;
     })
     .catch(() => {
+      // Token inválido o error → borrar token y redirigir
       localStorage.removeItem("token");
       window.location.href = "login.html";
     });
