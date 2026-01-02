@@ -20,6 +20,7 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+  ssl: { rejectUnauthorized: false }, // 🔑 CLAVE PARA RENDER
 });
 
 // Test de conexión
@@ -36,7 +37,7 @@ app.get("/", async (req, res) => {
   }
 });
 
-// Registro de usuarios
+// Registro
 app.post("/api/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -48,7 +49,7 @@ app.post("/api/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await pool.query(
-      "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3)",
+      "INSERT INTO public.users (name, email, password_hash) VALUES ($1, $2, $3)",
       [name, email, hashedPassword]
     );
 
@@ -62,7 +63,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// Login de usuarios
+// Login
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -71,12 +72,13 @@ app.post("/api/login", async (req, res) => {
       return res.status(400).json({ error: "Faltan datos" });
     }
 
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
+    const result = await pool.query(
+      "SELECT * FROM public.users WHERE email = $1",
+      [email]
+    );
 
     if (result.rows.length === 0) {
-      return res.status(400).json({ error: "Usuario no encontrado" });
+      return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
     const user = result.rows[0];
@@ -95,11 +97,16 @@ app.post("/api/login", async (req, res) => {
     res.json({
       message: "Login correcto ✅",
       token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
-    console.error("Error en /api/login:", error); // 👈 Error real en logs
-    res.status(500).json({ error: error.message }); // 👈 Para ver detalle en ReqBin
+    console.error("ERROR LOGIN REAL:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
