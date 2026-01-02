@@ -22,7 +22,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
 });
 
-// Ruta test
+// Test de conexión
 app.get("/", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -31,7 +31,8 @@ app.get("/", async (req, res) => {
       time: result.rows[0].now,
     });
   } catch (error) {
-    res.status(500).json({ error: "Error de conexión a PostgreSQL" });
+    console.error("Error de conexión:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -53,12 +54,11 @@ app.post("/api/register", async (req, res) => {
 
     res.json({ message: "Usuario registrado correctamente ✅" });
   } catch (error) {
+    console.error("Error en /api/register:", error);
     if (error.code === "23505") {
       return res.status(400).json({ error: "El email ya existe" });
     }
-
-    console.error(error);
-    res.status(500).json({ error: "Error del servidor" });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -71,10 +71,9 @@ app.post("/api/login", async (req, res) => {
       return res.status(400).json({ error: "Faltan datos" });
     }
 
-    const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
-    );
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+      email,
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(400).json({ error: "Usuario no encontrado" });
@@ -82,11 +81,7 @@ app.post("/api/login", async (req, res) => {
 
     const user = result.rows[0];
 
-    const validPassword = await bcrypt.compare(
-      password,
-      user.password_hash
-    );
-
+    const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
@@ -100,16 +95,11 @@ app.post("/api/login", async (req, res) => {
     res.json({
       message: "Login correcto ✅",
       token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error del servidor" });
+    console.error("Error en /api/login:", error); // 👈 Error real en logs
+    res.status(500).json({ error: error.message }); // 👈 Para ver detalle en ReqBin
   }
 });
 
@@ -118,21 +108,16 @@ function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
-  if (!token) {
-    return res.status(401).json({ error: "Token requerido" });
-  }
+  if (!token) return res.status(401).json({ error: "Token requerido" });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: "Token inválido" });
-    }
-
+    if (err) return res.status(403).json({ error: "Token inválido" });
     req.user = user;
     next();
   });
 }
 
-// Perfil (zona privada)
+// Perfil
 app.get("/api/profile", authenticateToken, (req, res) => {
   res.json({
     message: "Acceso autorizado 🔐",
@@ -140,29 +125,7 @@ app.get("/api/profile", authenticateToken, (req, res) => {
   });
 });
 
-// 🔐 CREAR RESERVA (USUARIO LOGUEADO)
-app.post("/api/reservations", authenticateToken, async (req, res) => {
-  try {
-    const { experience_id, reservation_date } = req.body;
-
-    if (!experience_id || !reservation_date) {
-      return res.status(400).json({ error: "Faltan datos de reserva" });
-    }
-
-    await pool.query(
-      `INSERT INTO reservations (user_id, experience_id, reservation_date, status)
-       VALUES ($1, $2, $3, 'pending')`,
-      [req.user.id, experience_id, reservation_date]
-    );
-
-    res.json({ message: "Reserva creada correctamente ✅" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error al crear la reserva" });
-  }
-});
-
-// Servidor
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
 });
+
