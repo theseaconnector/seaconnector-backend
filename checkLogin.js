@@ -1,25 +1,23 @@
 const axios = require('axios');
 
-axios.post('http://localhost:3000/api/login', {
+axios.post('https://seaconnector-backend.onrender.com/api/login', {
   email: "usuariofinal@theseaconnector.com",
   password: "123456"
 })
 .then(res => {
-  console.log("✅ Login correcto:");
-  console.log(res.data);
+  console.log("LOGIN CORRECTO:");
+  console.log("Token:", res.data.token);
+  console.log("Usuario:", res.data.user);
 })
 .catch(err => {
   if (err.response) {
-    // El servidor respondió con error (400, 500, etc.)
-    console.log("⚠️ Error del servidor:");
+    console.log("Error del servidor (" + err.response.status + "):");
     console.log(err.response.data);
   } else if (err.request) {
-    // No hubo respuesta del servidor
-    console.log("⚠️ No hay respuesta del servidor:");
-    console.log(err.request);
+    console.log("No hay respuesta del servidor");
+    console.log("Status:", err.request.status);
   } else {
-    // Otro tipo de error
-    console.log("⚠️ Error al hacer la petición:");
+    console.log("Error de petición:");
     console.log(err.message);
   }
 });

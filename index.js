@@ -17,7 +17,8 @@ app.use(express.static("public"));
 /* FIXED: Conexión simplificada usando DATABASE_URL (mejor práctica) */
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  user: 'postgres'  // ← ¡ESTA ES LA ÚNICA LÍNEA NUEVA!
 });
 
 // ===============================
@@ -39,12 +40,12 @@ app.get("/", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
     res.json({
-      message: "🟢 PostgreSQL conectado correctamente - SeaConnector Backend",
+      message: "PostgreSQL conectado correctamente - SeaConnector Backend",
       time: result.rows[0].now,
       dbInfo: "Tablas: users, reservations, experiences listas"
     });
   } catch (error) {
-    console.error("❌ Error de conexión:", error);
+    console.error("Error de conexión:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -78,11 +79,11 @@ app.post("/api/register", async (req, res) => {
     );
 
     res.status(201).json({ 
-      message: "✅ Usuario registrado correctamente",
+      message: "Usuario registrado correctamente",
       user: { name, email }
     });
   } catch (error) {
-    console.error("❌ Error en /api/register:", error);
+    console.error("Error en /api/register:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -97,7 +98,7 @@ app.post("/api/login", async (req, res) => {
       return res.status(400).json({ error: "Faltan email o password" });
     }
 
-    console.log("🔍 Buscando usuario:", email);
+    console.log("Buscando usuario:", email);
 
     // FIXED: Consulta corregida con campos específicos
     const result = await pool.query(
@@ -107,7 +108,7 @@ app.post("/api/login", async (req, res) => {
       [email]
     );
 
-    console.log("📊 Resultados encontrados:", result.rows.length);
+    console.log("Resultados encontrados:", result.rows.length);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Usuario no encontrado" });
@@ -126,10 +127,10 @@ app.post("/api/login", async (req, res) => {
       { expiresIn: "24h" }
     );
 
-    console.log("✅ Login exitoso para:", user.email);
+    console.log("Login exitoso para:", user.email);
 
     res.json({
-      message: "🎉 Login correcto",
+      message: "Login correcto",
       token,
       user: {
         id: user.id,
@@ -139,7 +140,7 @@ app.post("/api/login", async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("❌ ERROR LOGIN:", error);
+    console.error("ERROR LOGIN:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -172,22 +173,8 @@ app.get("/api/profile", authenticateToken, async (req, res) => {
     );
     
     res.json({
-      message: "✅ Perfil accesible",
+      message: "Perfil accesible",
       user: userData.rows[0]
     });
   } catch (error) {
-    console.error("❌ Error perfil:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Manejo de errores 404
-app.use("*", (req, res) => {
-  res.status(404).json({ error: "Ruta no encontrada" });
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor SeaConnector escuchando en http://localhost:${PORT}`);
-  console.log(`📡 Login: POST /api/login`);
-  console.log(`👤 Perfil: GET /api/profile`);
-});
+    console.error("Error
