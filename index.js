@@ -127,16 +127,26 @@ app.post("/api/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({
-      message: "Login exitoso",
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
+ // Verificar si es afiliado
+const affiliateResult = await pool.query(
+  "SELECT code, commission_rate FROM public.affiliates WHERE email = $1 AND active = true",
+  [user.email]
+);
+    
+const affiliate = affiliateResult.rows.length > 0 ? affiliateResult.rows[0] : null;
+
+res.json({
+  message: "Login exitoso",
+  token,
+  user: {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    affiliate_code: affiliate ? affiliate.code : null,
+    commission_rate: affiliate ? affiliate.commission_rate : null
+  }
+});
 
   } catch (error) {
     console.error("Error en /api/login:", error);
