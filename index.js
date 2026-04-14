@@ -143,6 +143,131 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// ======================
+// Crear tablas afiliados
+// ======================
+pool.query(`
+  CREATE TABLE IF NOT EXISTS public.affiliates (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(20) UNIQUE NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    type VARCHAR(20) DEFAULT 'persona',
+    commission_rate DECIMAL(5,2) DEFAULT 5.00,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+  CREATE TABLE IF NOT EXISTS public.affiliate_clicks (
+    id SERIAL PRIMARY KEY,
+    affiliate_code VARCHAR(20) NOT NULL,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+  CREATE TABLE IF NOT EXISTS public.affiliate_referrals (
+    id SERIAL PRIMARY KEY,
+    affiliate_code VARCHAR(20) NOT NULL,
+    amount DECIMAL(10,2),
+    commission DECIMAL(10,2),
+    status VARCHAR(20) DEFAULT 'pendiente',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`).then(() => console.log("Tablas afiliados creadas"))
+  .catch(err => console.error("Error creando tablas afiliados:", err));
+
+// ======================
+// Registrar click afiliado
+// ======================
+app.post("/api/affiliate/click", async (req, res) => {
+  try {
+    const { code } = req.body;
+    if(!code) return res.status(400).json({ error: "Falta el código" });
+    const affiliate = await pool.query(
+      "SELECT id FROM public.affiliates WHERE code = $1 AND active = true",
+      [code]
+    );
+    if(affiliate.rows.length === 0){
+      return res.status(404).json({ error: "Código no encontrado" });
+    }
+    await pool.query(
+      "INSERT INTO public.affiliate_clicks (affiliate_code, ip_address) VALUES ($1, $2)",
+      [code, req.ip]
+    );
+    res.json({ message: "Click registrado", code });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ======================
+// Crear afiliado
+// ======================
+app.post("/api/affiliate/create", async (req, res) => {
+  try {
+    const { code, name, email, phone, type, commission_rate } = req.body;
+    if(!code || !name) return res.status(400).json({ error: "Faltan code y name" });
+    await pool.query(
+      `INSERT INTO public.affiliates (code, name, email, phone, type, commission_rate)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [code, name, email, phone, type||'persona', commission_rate||5.00]
+    );
+    res.status(201).json({ message: "Afiliado creado", code });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ======================
+// Registrar referido
+// ======================
+app.post("/api/affiliate/referral", async (req, res) => {
+  try {
+    const { affiliate_code, amount, commission, notes } = req.body;
+    if(!affiliate_code || !amount) return res.status(400).json({ error: "Faltan datos" });
+    await pool.query(
+      `INSERT INTO public.affiliate_referrals (affiliate_code, amount, commission, notes)
+       VALUES ($1, $2, $3, $4)`,
+      [affiliate_code, amount, commission, notes]
+    );
+    res.status(201).json({ message: "Referido registrado" });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ======================
+// Stats afiliado
+// ======================
+app.get("/api/affiliate/stats/:code", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const affiliate = await pool.query(
+      "SELECT * FROM public.affiliates WHERE code = $1",
+      [code]
+    );
+    if(affiliate.rows.length === 0){
+      return res.status(404).json({ error: "Afiliado no encontrado" });
+    }
+    const clicks = await pool.query(
+      "SELECT COUNT(*) FROM public.affiliate_clicks WHERE affiliate_code = $1",
+      [code]
+    );
+    const referrals = await pool.query(
+      "SELECT COUNT(*), SUM(amount), SUM(commission) FROM public.affiliate_referrals WHERE affiliate_code = $1",
+      [code]
+    );
+    res.json({
+      affiliate: affiliate.rows[0],
+      clicks: parseInt(clicks.rows[0].count),
+      referrals: parseInt(referrals.rows[0].count),
+      total_amount: parseFloat(referrals.rows[0].sum)||0,
+      total_commission: parseFloat(referrals.rows[0].sum_1)||0
+    });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ======================
 // Start server
