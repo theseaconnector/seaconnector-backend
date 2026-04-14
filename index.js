@@ -302,6 +302,23 @@ app.put("/api/affiliate/update/:code", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ======================
+// Reset password afiliado
+// ======================
+app.post("/api/affiliate/reset-password", async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    if(!email || !newPassword) return res.status(400).json({ error: "Faltan datos" });
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      "UPDATE public.users SET password_hash = $1 WHERE email = $2",
+      [hashedPassword, email]
+    );
+    res.json({ message: "Contraseña actualizada" });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ======================
 // Start server
