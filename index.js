@@ -270,6 +270,30 @@ app.get("/api/affiliate/stats/:code", async (req, res) => {
 });
 
 // ======================
+// Actualizar afiliado
+// ======================
+app.put("/api/affiliate/update/:code", async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { name, email, phone, type, commission_rate, active } = req.body;
+    await pool.query(
+      `UPDATE public.affiliates 
+       SET name = COALESCE($1, name),
+           email = COALESCE($2, email),
+           phone = COALESCE($3, phone),
+           type = COALESCE($4, type),
+           commission_rate = COALESCE($5, commission_rate),
+           active = COALESCE($6, active)
+       WHERE code = $7`,
+      [name, email, phone, type, commission_rate, active, code]
+    );
+    res.json({ message: "Afiliado actualizado", code });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ======================
 // Start server
 // ======================
 app.listen(PORT, () => {
